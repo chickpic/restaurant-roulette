@@ -135,7 +135,7 @@ const claudeService = {
 Respond with ONLY a JSON object in this exact format:
 {
   "city": "city name",
-  "state": "two-letter state/province code",
+  "state": "two-letter state/province code", 
   "neighborhood": "specific neighborhood name"
 }
 
@@ -151,11 +151,22 @@ Do not include any other text or formatting.`
     }
 
     const data = await response.json();
-    const text = data.content[0].text.trim();
+    
+    // Handle both direct response and wrapped response
+    let text;
+    if (data.content && data.content[0] && data.content[0].text) {
+      text = data.content[0].text.trim();
+    } else if (typeof data === 'string') {
+      text = data.trim();
+    } else {
+      console.error('Unexpected API response:', data);
+      throw new Error("Unexpected API response format");
+    }
     
     try {
       return JSON.parse(text);
     } catch (e) {
+      console.error('Failed to parse JSON:', text);
       throw new Error("Could not parse location details");
     }
   },
@@ -189,12 +200,23 @@ Do not include any other text or formatting.`
     }
 
     const data = await response.json();
-    const text = data.content[0].text.trim();
+    
+    // Handle both direct response and wrapped response
+    let text;
+    if (data.content && data.content[0] && data.content[0].text) {
+      text = data.content[0].text.trim();
+    } else if (typeof data === 'string') {
+      text = data.trim();
+    } else {
+      console.error('Unexpected API response:', data);
+      throw new Error("Unexpected API response format");
+    }
     
     try {
       const result = JSON.parse(text);
       return result.neighborhoods || [];
     } catch (e) {
+      console.error('Failed to parse JSON:', text);
       throw new Error("Could not parse neighborhoods");
     }
   },
@@ -225,7 +247,7 @@ If you cannot find a real restaurant matching the criteria exactly, return this 
   "longitude": 0,
   "imageUrls": [],
   "cuisine": "Any",
-  "price": "Any",
+  "price": "Any", 
   "neighborhood": "Any",
   "menu": []
 }
@@ -245,7 +267,7 @@ Otherwise, respond with ONLY a JSON object in this exact format:
   "menu": [
     {
       "name": "dish name",
-      "description": "dish description", 
+      "description": "dish description",
       "price": "$15.99"
     }
   ]
@@ -263,25 +285,35 @@ Include 2-4 menu items and up to 5 high-quality image URLs. Do not include any o
     }
 
     const data = await response.json();
-    const text = data.content[0].text.trim();
+    
+    // Handle both direct response and wrapped response
+    let text;
+    if (data.content && data.content[0] && data.content[0].text) {
+      text = data.content[0].text.trim();
+    } else if (typeof data === 'string') {
+      text = data.trim();
+    } else {
+      console.error('Unexpected API response:', data);
+      throw new Error("Unexpected API response format");
+    }
     
     try {
       const restaurant = JSON.parse(text);
       
-if (restaurant.name === 'NO_RESTAURANT_FOUND') {
-       throw new Error("NO_RESTAURANT_FOUND");
-     }
-     
-     return restaurant;
-   } catch (e) {
-     if (e instanceof Error && e.message === "NO_RESTAURANT_FOUND") {
-       throw e;
-     }
-     throw new Error("Could not parse restaurant data");
-   }
- }
+      if (restaurant.name === 'NO_RESTAURANT_FOUND') {
+        throw new Error("NO_RESTAURANT_FOUND");
+      }
+      
+      return restaurant;
+    } catch (e) {
+      if (e instanceof Error && e.message === "NO_RESTAURANT_FOUND") {
+        throw e;
+      }
+      console.error('Failed to parse JSON:', text);
+      throw new Error("Could not parse restaurant data");
+    }
+  }
 };
-
 // Components
 const Slot: React.FC<{
   title: string;
