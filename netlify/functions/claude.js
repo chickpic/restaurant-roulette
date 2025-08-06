@@ -1,24 +1,26 @@
-exports.handler = async (event, context) => {
+echo 'exports.handler = async (event, context) => {
   const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS'
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS"
   };
 
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 200, headers, body: "" };
   }
 
-  if (event.httpMethod !== 'POST') {
+  if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ error: 'Method not allowed' })
+      body: JSON.stringify({ error: "Method not allowed" })
     };
   }
 
   try {
     const { messages, max_tokens } = JSON.parse(event.body);
+
+    console.log("Making request to Claude API...");
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -35,6 +37,8 @@ exports.handler = async (event, context) => {
     });
 
     const data = await response.json();
+    console.log("Claude API response:", JSON.stringify(data, null, 2));
+
     return {
       statusCode: 200,
       headers,
@@ -42,10 +46,11 @@ exports.handler = async (event, context) => {
     };
 
   } catch (error) {
+    console.error("Function error:", error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({ error: error.message, stack: error.stack })
     };
   }
-};
+};' > netlify/functions/claude.js
