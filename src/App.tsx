@@ -222,22 +222,30 @@ Do not include any other text or formatting.`
   },
 
   async fetchRestaurantSuggestion(cuisine: string, price: string, neighborhood: string, location: string): Promise<Restaurant> {
-    const response = await fetch("/.netlify/functions/claude", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messages: [
-          {
-            role: "user",
-            content: `Find one real, popular restaurant that fits these criteria:
-- City: "${location}"
-- Neighborhood: "${neighborhood === 'Any' ? 'any neighborhood' : neighborhood}"
-- Cuisine: "${cuisine === 'Any' ? 'any cuisine' : cuisine}"
-- Price: "${price === 'Any' ? 'any price range' : price}"
+  const response = await fetch("/.netlify/functions/claude", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messages: [
+        {
+          role: "user",
+          content: `You are a local restaurant expert. I need you to find ONE real, currently operating restaurant in ${location} that matches these criteria:
 
-If you cannot find a real restaurant matching the criteria exactly, return this JSON:
+- City: "${location}"
+- Neighborhood: "${neighborhood === 'Any' ? 'any neighborhood in the city' : 'specifically in ' + neighborhood + ' neighborhood'}"
+- Cuisine: "${cuisine === 'Any' ? 'any cuisine type' : cuisine + ' cuisine'}"
+- Price: "${price === 'Any' ? 'any price range' : price + ' price range'}"
+
+CRITICAL REQUIREMENTS:
+1. The restaurant MUST be a real, currently operating establishment
+2. The address MUST be the actual, correct street address
+3. The neighborhood MUST match where the restaurant actually is located
+4. Do not make up or approximate any information
+5. If you cannot find a real restaurant that matches the criteria exactly, return the NO_RESTAURANT_FOUND response below
+
+If you cannot find a real restaurant matching these criteria, return this exact JSON:
 {
   "name": "NO_RESTAURANT_FOUND",
   "description": "Could not find a restaurant matching the criteria",
@@ -247,39 +255,43 @@ If you cannot find a real restaurant matching the criteria exactly, return this 
   "longitude": 0,
   "imageUrls": [],
   "cuisine": "Any",
-  "price": "Any", 
+  "price": "Any",
   "neighborhood": "Any",
   "menu": []
 }
 
-Otherwise, respond with ONLY a JSON object in this exact format:
+If you find a real restaurant, respond with ONLY a JSON object in this exact format:
 {
-  "name": "restaurant name",
-  "description": "brief enticing description",
-  "address": "full street address",
-  "rating": 4.5,
-  "latitude": 37.7749,
-  "longitude": -122.4194,
-  "imageUrls": ["url1", "url2", "url3", "url4", "url5"],
+  "name": "exact restaurant name",
+  "description": "brief description of what makes this restaurant special",
+  "address": "complete and accurate street address including house number",
+  "rating": 4.2,
+  "latitude": accurate_latitude,
+  "longitude": accurate_longitude,
+  "imageUrls": ["url1", "url2", "url3"],
   "cuisine": "actual cuisine type",
   "price": "$, $$, $$$, or $$$$",
-  "neighborhood": "actual neighborhood name",
+  "neighborhood": "actual neighborhood where restaurant is located",
   "menu": [
     {
-      "name": "dish name",
+      "name": "popular dish name",
       "description": "dish description",
-      "price": "$15.99"
+      "price": "actual price if known, or estimated price like €15.50"
+    },
+    {
+      "name": "another popular dish",
+      "description": "dish description", 
+      "price": "actual price if known, or estimated price"
     }
   ]
 }
 
-Include 2-4 menu items and up to 5 high-quality image URLs. Do not include any other text or formatting.`
-          }
-        ],
-        max_tokens: 2000
-      })
-    });
-
+Include 2-4 real menu items and 3-5 high-quality image URLs if available. Ensure all information is factually correct.`
+        }
+      ],
+      max_tokens: 2000
+    })
+  });
     if (!response.ok) {
       throw new Error("Failed to get restaurant suggestion");
     }
