@@ -1,4 +1,4 @@
-echo 'exports.handler = async (event, context) => {
+exports.handler = async (event, context) => {
   const headers = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type",
@@ -53,4 +53,4 @@ echo 'exports.handler = async (event, context) => {
       body: JSON.stringify({ error: error.message, stack: error.stack })
     };
   }
-};' > netlify/functions/claude.js
+};
