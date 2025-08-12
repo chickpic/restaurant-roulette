@@ -46,9 +46,10 @@ const LocationIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// Fixed crosshair icon without dot
 const CrosshairIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2v4m0 12v4M2 12h4m12 0h4m-9-7a3 3 0 106 0 3 3 0 00-6 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2v4m0 12v4M2 12h4m12 0h4" />
   </svg>
 );
 
@@ -135,7 +136,7 @@ const claudeService = {
 Respond with ONLY a JSON object in this exact format:
 {
   "city": "city name",
-  "state": "two-letter state/province code", 
+  "state": "two-letter state/province code",
   "neighborhood": "specific neighborhood name"
 }
 
@@ -152,7 +153,6 @@ Do not include any other text or formatting.`
 
     const data = await response.json();
     
-    // Handle both direct response and wrapped response
     let text;
     if (data.content && data.content[0] && data.content[0].text) {
       text = data.content[0].text.trim();
@@ -201,7 +201,6 @@ Do not include any other text or formatting.`
 
     const data = await response.json();
     
-    // Handle both direct response and wrapped response
     let text;
     if (data.content && data.content[0] && data.content[0].text) {
       text = data.content[0].text.trim();
@@ -222,16 +221,16 @@ Do not include any other text or formatting.`
   },
 
   async fetchRestaurantSuggestion(cuisine: string, price: string, neighborhood: string, location: string): Promise<Restaurant> {
-  const response = await fetch("/.netlify/functions/claude", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      messages: [
-        {
-          role: "user",
-          content: `You are a local restaurant expert. I need you to find ONE real, currently operating restaurant in ${location} that matches these criteria:
+    const response = await fetch("/.netlify/functions/claude", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: "user",
+            content: `You are a local restaurant expert. I need you to find ONE real, currently operating restaurant in ${location} that matches these criteria:
 
 - City: "${location}"
 - Neighborhood: "${neighborhood === 'Any' ? 'any neighborhood in the city' : 'specifically in ' + neighborhood + ' neighborhood'}"
@@ -287,18 +286,18 @@ If you find a real restaurant, respond with ONLY a JSON object in this exact for
 }
 
 Include 2-4 real menu items and 3-5 high-quality image URLs if available. Ensure all information is factually correct.`
-        }
-      ],
-      max_tokens: 2000
-    })
-  });
+          }
+        ],
+        max_tokens: 2000
+      })
+    });
+
     if (!response.ok) {
       throw new Error("Failed to get restaurant suggestion");
     }
 
     const data = await response.json();
     
-    // Handle both direct response and wrapped response
     let text;
     if (data.content && data.content[0] && data.content[0].text) {
       text = data.content[0].text.trim();
@@ -326,8 +325,9 @@ Include 2-4 real menu items and 3-5 high-quality image URLs if available. Ensure
     }
   }
 };
-// Components
-const Slot: React.FC<{
+
+// Slot Machine Component
+const SlotMachine: React.FC<{
   title: string;
   options: string[];
   selectedValue: string;
@@ -356,6 +356,65 @@ const Slot: React.FC<{
   searchValue = '',
   onSearchChange
 }) => {
+  const [displayOptions, setDisplayOptions] = useState<string[]>([]);
+  const [animationIndex, setAnimationIndex] = useState(0);
+  const animationRef = useRef<number>();
+
+  // Initialize display options
+  useEffect(() => {
+    const currentIndex = options.indexOf(selectedValue);
+    if (currentIndex === -1) {
+      setDisplayOptions([options[0], options[1] || options[0], options[2] || options[1] || options[0]]);
+    } else {
+      const prevIndex = currentIndex > 0 ? currentIndex - 1 : options.length - 1;
+      const nextIndex = currentIndex < options.length - 1 ? currentIndex + 1 : 0;
+      setDisplayOptions([options[prevIndex], options[currentIndex], options[nextIndex]]);
+    }
+  }, [options, selectedValue]);
+
+  // Slot machine animation
+  useEffect(() => {
+    if (isSpinning && !isLocked) {
+      const animate = () => {
+        setAnimationIndex(prev => (prev + 1) % options.length);
+        animationRef.current = requestAnimationFrame(animate);
+      };
+      animationRef.current = requestAnimationFrame(animate);
+    } else {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    }
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [isSpinning, isLocked, options]);
+
+  // Update display during animation
+  useEffect(() => {
+    if (isSpinning && !isLocked) {
+      const centerIndex = animationIndex;
+      const prevIndex = centerIndex > 0 ? centerIndex - 1 : options.length - 1;
+      const nextIndex = centerIndex < options.length - 1 ? centerIndex + 1 : 0;
+      setDisplayOptions([options[prevIndex], options[centerIndex], options[nextIndex]]);
+    }
+  }, [animationIndex, isSpinning, isLocked, options]);
+
+  // Stop animation at final value
+  useEffect(() => {
+    if (!isSpinning && !isLocked) {
+      const currentIndex = options.indexOf(selectedValue);
+      if (currentIndex !== -1) {
+        const prevIndex = currentIndex > 0 ? currentIndex - 1 : options.length - 1;
+        const nextIndex = currentIndex < options.length - 1 ? currentIndex + 1 : 0;
+        setDisplayOptions([options[prevIndex], options[currentIndex], options[nextIndex]]);
+      }
+    }
+  }, [isSpinning, selectedValue, options, isLocked]);
+
   return (
     <div className="bg-gray-800/50 p-6 rounded-xl border border-gray-700">
       <div className="flex items-center justify-between mb-4">
@@ -397,19 +456,43 @@ const Slot: React.FC<{
         </div>
       )}
 
-      <div className="relative">
-        <select
-          value={selectedValue}
-          onChange={(e) => onValueChange(e.target.value)}
-          disabled={isLocked || isSpinning || isLoading}
-          className="w-full bg-gray-900 border-2 border-gray-600 rounded-md py-3 px-4 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+      {/* Slot Machine Display */}
+      <div className="relative bg-gray-900 border-2 border-gray-600 rounded-md overflow-hidden">
+        <div className="relative h-32 flex flex-col">
+          {/* Slot window */}
+          <div className="absolute inset-0 flex flex-col justify-center">
+            {displayOptions.map((option, index) => (
+              <div
+                key={`${option}-${index}`}
+                className={`h-10 flex items-center justify-center px-4 text-center transition-all duration-100 ${
+                  index === 1 
+                    ? 'text-white font-semibold bg-rose-600/20 border-y border-rose-500/50' 
+                    : 'text-gray-400 text-sm'
+                } ${isSpinning && !isLocked ? 'animate-pulse' : ''}`}
+              >
+                {option}
+              </div>
+            ))}
+          </div>
+          
+          {/* Selection window overlay */}
+          <div className="absolute inset-x-0 top-1/2 transform -translate-y-1/2 h-10 border-y-2 border-rose-500 pointer-events-none" />
+          
+          {/* Hidden select for functionality */}
+          <select
+            value={selectedValue}
+            onChange={(e) => onValueChange(e.target.value)}
+            disabled={isLocked || isSpinning || isLoading}
+            className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+          >
+            {options.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {isLoading && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
             <LoadingSpinnerIcon className="w-5 h-5 animate-spin text-rose-500" />
@@ -420,6 +503,7 @@ const Slot: React.FC<{
   );
 };
 
+// Compact Restaurant Card
 const RestaurantCard: React.FC<{
   restaurant: Restaurant;
   userCoordinates: { lat: number, lon: number } | null;
@@ -454,20 +538,36 @@ const RestaurantCard: React.FC<{
   }, [address]);
 
   return (
-    <div className="bg-gradient-to-br from-gray-800 to-gray-800/80 p-6 rounded-2xl shadow-2xl border border-gray-700 animate-fade-in w-full">
+    <div className="bg-gradient-to-br from-gray-800 to-gray-800/80 p-4 rounded-xl shadow-xl border border-gray-700 animate-fade-in w-full max-w-2xl mx-auto">
+      {/* Restaurant name at the top */}
+      <div className="flex justify-between items-start mb-3">
+        <h3 
+          className="text-2xl font-bold text-rose-400 cursor-pointer hover:text-rose-300 transition-colors"
+          onClick={onNameClick}
+          title={`View details for ${name}`}
+        >
+          {name}
+        </h3>
+        <div className="flex items-center space-x-1 bg-gray-700 px-2 py-1 rounded-full">
+          <span className="font-bold text-white text-sm">{rating.toFixed(1)}</span>
+          <StarIcon className="w-4 h-4 text-yellow-400" />
+        </div>
+      </div>
+
       {fallbackNote && (
-        <div className="mb-4 p-3 bg-yellow-900/60 border border-yellow-700 rounded-lg text-center">
-          <p className="text-yellow-200 text-sm font-medium">{fallbackNote}</p>
+        <div className="mb-3 p-2 bg-yellow-900/60 border border-yellow-700 rounded-lg text-center">
+          <p className="text-yellow-200 text-xs font-medium">{fallbackNote}</p>
         </div>
       )}
 
+      {/* Images in a compact grid */}
       {imageUrls && imageUrls.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mb-4">
-          {imageUrls.slice(0, 5).map((url, index) => (
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          {imageUrls.slice(0, 3).map((url, index) => (
             <div key={index} className="aspect-square">
               <img 
                 src={url} 
-                alt={`${name} example ${index + 1}`} 
+                alt={`${name} ${index + 1}`} 
                 className="w-full h-full object-cover rounded-lg shadow-md hover:scale-105 transition-transform duration-300"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
@@ -478,35 +578,21 @@ const RestaurantCard: React.FC<{
           ))}
         </div>
       )}
-      
-      <div className="flex justify-between items-start mb-2 flex-wrap gap-2">
-        <h3 
-          className="text-3xl font-bold text-rose-400 cursor-pointer hover:text-rose-300 transition-colors"
-          onClick={onNameClick}
-          title={`View details for ${name}`}
-        >
-          {name}
-        </h3>
-        <div className="flex items-center flex-shrink-0 space-x-1 bg-gray-700 px-3 py-1 rounded-full text-lg">
-          <span className="font-bold text-white">{rating.toFixed(1)}</span>
-          <StarIcon className="w-5 h-5 text-yellow-400" />
-        </div>
-      </div>
 
-      <p className="text-lg text-gray-300 mb-4 italic">"{description}"</p>
+      <p className="text-gray-300 mb-3 italic text-sm">"{description}"</p>
       
-      <div className="border-t border-gray-700 pt-4 mb-4">
-        <div className="flex justify-between items-center gap-4">
-          <p className="text-md text-gray-400 font-medium">{address}</p>
+      <div className="border-t border-gray-700 pt-3">
+        <div className="flex justify-between items-center gap-2">
+          <p className="text-sm text-gray-400 font-medium">{address}</p>
           {formattedDistance && (
             <a
               href={mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
               title={`Get directions to ${name}`}
-              className="flex items-center flex-shrink-0 gap-1 text-sm text-gray-300 bg-gray-700/50 px-2 py-1 rounded-md hover:bg-gray-600 transition-colors cursor-pointer"
+              className="flex items-center gap-1 text-xs text-gray-300 bg-gray-700/50 px-2 py-1 rounded-md hover:bg-gray-600 transition-colors cursor-pointer"
             >
-              <DistanceIcon className="w-4 h-4" />
+              <DistanceIcon className="w-3 h-3" />
               <span>{formattedDistance}</span>
             </a>
           )}
@@ -824,6 +910,7 @@ const App: React.FC = () => {
     try {
       const result = await findRestaurantWithFallbacks(searchCuisine, searchPrice, searchNeighborhood);
       
+      // Update slots to match the result (slot machine stops at result)
       if (!lockedSlots.cuisine) {
         setSelectedCuisine(result.cuisine);
       }
@@ -893,6 +980,7 @@ const App: React.FC = () => {
         </header>
 
         <div className="max-w-4xl mx-auto">
+          {/* Location Input */}
           <div className="mb-8 p-4 bg-gray-800/50 rounded-xl border border-gray-700">
             <label htmlFor="location" className="block text-sm font-medium text-gray-400 mb-2">
               Enter City
@@ -949,8 +1037,9 @@ const App: React.FC = () => {
             </div>
           </div>
 
+          {/* Slot Machine */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 mb-8 md:mb-12">
-            <Slot
+            <SlotMachine
               title="Cuisine"
               options={cuisineOptions}
               selectedValue={selectedCuisine}
@@ -959,7 +1048,7 @@ const App: React.FC = () => {
               onLockToggle={() => toggleLock('cuisine')}
               isSpinning={isSpinning}
             />
-            <Slot
+            <SlotMachine
               title="Price"
               options={priceOptions}
               selectedValue={selectedPrice}
@@ -968,7 +1057,7 @@ const App: React.FC = () => {
               onLockToggle={() => toggleLock('price')}
               isSpinning={isSpinning}
             />
-            <Slot
+            <SlotMachine
               title="Neighborhood"
               options={filteredNeighborhoods}
               selectedValue={selectedNeighborhood}
@@ -985,13 +1074,14 @@ const App: React.FC = () => {
             />
           </div>
 
+          {/* Spin Button */}
           <div className="text-center mb-8 md:mb-12">
             <button
               onClick={handleSpin}
               disabled={isSpinDisabled}
               className="group relative inline-flex items-center justify-center px-12 py-4 text-lg font-bold text-white bg-rose-600 rounded-full hover:bg-rose-700 transition-all duration-300 disabled:bg-gray-600 disabled:cursor-not-allowed transform hover:scale-105"
             >
-              {isSpinning && !restaurant ? (
+              {isSpinning ? (
                 <>
                   <LoadingSpinnerIcon className="w-6 h-6 mr-2 animate-spin" />
                   Shaking...
@@ -1002,9 +1092,10 @@ const App: React.FC = () => {
             </button>
           </div>
           
-          <div className="min-h-[200px] flex items-center justify-center">
+          {/* Result Area - Removed the separate loading spinner */}
+          <div className="flex items-center justify-center">
             {error && (
-              <div className="text-center p-4 bg-red-900/50 border border-red-700 rounded-lg animate-fade-in">
+              <div className="text-center p-4 bg-red-900/50 border border-red-700 rounded-lg animate-fade-in max-w-2xl">
                 <p className="text-red-300 font-semibold">Oops! An error occurred.</p>
                 <p className="text-red-400">{error}</p>
               </div>
@@ -1016,13 +1107,6 @@ const App: React.FC = () => {
                 userCoordinates={userCoordinates} 
                 onNameClick={() => handleOpenModal(restaurant)}
               />
-            )}
-
-            {isSpinning && !restaurant && !error && (
-              <div className="flex flex-col items-center gap-4 text-gray-400 animate-fade-in">
-                <LoadingSpinnerIcon className="w-12 h-12 animate-spin text-rose-500" />
-                <p className="text-lg">{loadingMessage}</p>
-              </div>
             )}
           </div>
         </div>
