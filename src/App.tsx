@@ -372,11 +372,25 @@ const SlotMachine: React.FC<{
     }
   }, [options, selectedValue]);
 
-  // Slot machine animation
+  // Slot machine animation with different speeds
   useEffect(() => {
     if (isSpinning && !isLocked) {
+      let frameCount = 0;
+      let speed = 1; // Default speed
+      
+      // Set different speeds based on slot type
+      if (title === 'Price') {
+        speed = 3; // 1/3 speed - every 3rd frame
+      } else if (title === 'Cuisine' || title === 'Neighborhood') {
+        speed = 2; // 1/2 speed - every 2nd frame
+      }
+      
       const animate = () => {
-        setAnimationIndex(prev => (prev + 1) % options.length);
+        frameCount++;
+        if (frameCount >= speed) {
+          setAnimationIndex(prev => (prev + 1) % options.length);
+          frameCount = 0;
+        }
         animationRef.current = requestAnimationFrame(animate);
       };
       animationRef.current = requestAnimationFrame(animate);
@@ -391,7 +405,7 @@ const SlotMachine: React.FC<{
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isSpinning, isLocked, options]);
+  }, [isSpinning, isLocked, options, title]);
 
   // Update display during animation
   useEffect(() => {
@@ -540,7 +554,7 @@ const RestaurantCard: React.FC<{
   return (
     <div className="bg-gradient-to-br from-gray-800 to-gray-800/80 p-4 rounded-xl shadow-xl border border-gray-700 animate-fade-in w-full max-w-2xl mx-auto">
       {/* Restaurant name at the top */}
-      <div className="flex justify-between items-start mb-3">
+      <div className="flex justify-between items-start mb-2">
         <h3 
           className="text-2xl font-bold text-rose-400 cursor-pointer hover:text-rose-300 transition-colors"
           onClick={onNameClick}
@@ -555,14 +569,16 @@ const RestaurantCard: React.FC<{
       </div>
 
       {fallbackNote && (
-        <div className="mb-3 p-2 bg-yellow-900/60 border border-yellow-700 rounded-lg text-center">
+        <div className="mb-2 p-2 bg-yellow-900/60 border border-yellow-700 rounded-lg text-center">
           <p className="text-yellow-200 text-xs font-medium">{fallbackNote}</p>
         </div>
       )}
 
+      <p className="text-gray-300 mb-2 italic text-sm">"{description}"</p>
+
       {/* Images in a compact grid */}
       {imageUrls && imageUrls.length > 0 && (
-        <div className="grid grid-cols-3 gap-2 mb-3">
+        <div className="grid grid-cols-3 gap-2 mb-2">
           {imageUrls.slice(0, 3).map((url, index) => (
             <div key={index} className="aspect-square">
               <img 
@@ -578,10 +594,8 @@ const RestaurantCard: React.FC<{
           ))}
         </div>
       )}
-
-      <p className="text-gray-300 mb-3 italic text-sm">"{description}"</p>
       
-      <div className="border-t border-gray-700 pt-3">
+      <div className="border-t border-gray-700 pt-2">
         <div className="flex justify-between items-center gap-2">
           <p className="text-sm text-gray-400 font-medium">{address}</p>
           {formattedDistance && (
