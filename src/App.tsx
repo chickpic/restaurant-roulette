@@ -517,13 +517,14 @@ const SlotMachine: React.FC<{
   );
 };
 
-// Compact Restaurant Card
+// Restaurant Card with Version 5 Layout
 const RestaurantCard: React.FC<{
   restaurant: Restaurant;
   userCoordinates: { lat: number, lon: number } | null;
   onNameClick: () => void;
 }> = ({ restaurant, userCoordinates, onNameClick }) => {
   const { name, description, address, rating, imageUrls, latitude, longitude, fallbackNote } = restaurant;
+  const [loadedImages, setLoadedImages] = useState<string[]>([]);
 
   const formattedDistance = useMemo(() => {
     if (!userCoordinates || latitude === undefined || longitude === undefined) {
@@ -551,9 +552,30 @@ const RestaurantCard: React.FC<{
     }
   }, [address]);
 
+  // Track which images actually load
+  const handleImageLoad = useCallback((url: string) => {
+    setLoadedImages(prev => {
+      if (!prev.includes(url)) {
+        return [...prev, url];
+      }
+      return prev;
+    });
+  }, []);
+
+  const handleImageError = useCallback((url: string) => {
+    setLoadedImages(prev => prev.filter(loadedUrl => loadedUrl !== url));
+  }, []);
+
+  // Reset loaded images when restaurant changes
+  useEffect(() => {
+    setLoadedImages([]);
+  }, [restaurant.name]);
+
+  const hasLoadedImages = loadedImages.length > 0;
+
   return (
     <div className="bg-gradient-to-br from-gray-800 to-gray-800/80 p-4 rounded-xl shadow-xl border border-gray-700 animate-fade-in w-full max-w-2xl mx-auto">
-      {/* Restaurant name at the top */}
+      {/* Restaurant name and rating at the top */}
       <div className="flex justify-between items-start mb-2">
         <h3 
           className="text-2xl font-bold text-rose-400 cursor-pointer hover:text-rose-300 transition-colors"
@@ -574,44 +596,70 @@ const RestaurantCard: React.FC<{
         </div>
       )}
 
+      {/* Description */}
       <p className="text-gray-300 mb-2 italic text-sm">"{description}"</p>
 
-      {/* Images in a compact grid */}
+      {/* Address + Distance (directly after description if no images) */}
+      {!hasLoadedImages && (
+        <div className="border-t border-gray-700 pt-2 mb-2">
+          <div className="flex justify-between items-center gap-2">
+            <p className="text-sm text-gray-400 font-medium">{address}</p>
+            {formattedDistance && (
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Get directions to ${name}`}
+                className="flex items-center gap-1 text-xs text-gray-300 bg-gray-700/50 px-2 py-1 rounded-md hover:bg-gray-600 transition-colors cursor-pointer"
+              >
+                <DistanceIcon className="w-3 h-3" />
+                <span>{formattedDistance}</span>
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Images section - only show if images actually load */}
       {imageUrls && imageUrls.length > 0 && (
-        <div className="grid grid-cols-3 gap-2 mb-2">
-          {imageUrls.slice(0, 3).map((url, index) => (
-            <div key={index} className="aspect-square">
-              <img 
-                src={url} 
-                alt={`${name} ${index + 1}`} 
-                className="w-full h-full object-cover rounded-lg shadow-md hover:scale-105 transition-transform duration-300"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                }}
-              />
-            </div>
-          ))}
+        <div className="mb-2">
+          <div className="grid grid-cols-3 gap-1">
+            {imageUrls.slice(0, 3).map((url, index) => (
+              <div key={index} className="aspect-square">
+                <img 
+                  src={url} 
+                  alt={`${name} ${index + 1}`} 
+                  className="w-full h-full object-cover rounded-lg shadow-md hover:scale-105 transition-transform duration-300"
+                  onLoad={() => handleImageLoad(url)}
+                  onError={() => handleImageError(url)}
+                  style={{ display: loadedImages.includes(url) ? 'block' : 'none' }}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       )}
       
-      <div className="border-t border-gray-700 pt-2">
-        <div className="flex justify-between items-center gap-2">
-          <p className="text-sm text-gray-400 font-medium">{address}</p>
-          {formattedDistance && (
-            <a
-              href={mapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={`Get directions to ${name}`}
-              className="flex items-center gap-1 text-xs text-gray-300 bg-gray-700/50 px-2 py-1 rounded-md hover:bg-gray-600 transition-colors cursor-pointer"
-            >
-              <DistanceIcon className="w-3 h-3" />
-              <span>{formattedDistance}</span>
-            </a>
-          )}
+      {/* Address + Distance (after images if images load) */}
+      {hasLoadedImages && (
+        <div className="border-t border-gray-700 pt-2">
+          <div className="flex justify-between items-center gap-2">
+            <p className="text-sm text-gray-400 font-medium">{address}</p>
+            {formattedDistance && (
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Get directions to ${name}`}
+                className="flex items-center gap-1 text-xs text-gray-300 bg-gray-700/50 px-2 py-1 rounded-md hover:bg-gray-600 transition-colors cursor-pointer"
+              >
+                <DistanceIcon className="w-3 h-3" />
+                <span>{formattedDistance}</span>
+              </a>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
@@ -1106,7 +1154,7 @@ const App: React.FC = () => {
             </button>
           </div>
           
-          {/* Result Area - Removed the separate loading spinner */}
+          {/* Result Area */}
           <div className="flex items-center justify-center">
             {error && (
               <div className="text-center p-4 bg-red-900/50 border border-red-700 rounded-lg animate-fade-in max-w-2xl">
